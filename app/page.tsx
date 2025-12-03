@@ -53,7 +53,7 @@ export default function Home() {
 
   const picks = data?.picks || [];
 
-  // Check localStorage for existing pick on mount - and show name picker if no name selected
+  // Check localStorage for existing pick on mount
   useEffect(() => {
     const savedPick = localStorage.getItem(LOCAL_PICK_KEY);
     const savedPickerName = localStorage.getItem(LOCAL_PICKER_KEY);
@@ -68,11 +68,15 @@ export default function Home() {
       }
     } else if (savedPickerName) {
       setPickerName(savedPickerName);
-    } else {
-      // No name selected yet - show name picker immediately
-      setShowNamePicker(true);
     }
   }, []);
+
+  // Show name picker after database loads if no name selected
+  useEffect(() => {
+    if (!dbLoading && !pickerName && !myPick) {
+      setShowNamePicker(true);
+    }
+  }, [dbLoading, pickerName, myPick]);
 
   // Check if local pick still exists in database - if not, clear local storage (game was reset)
   useEffect(() => {
