@@ -118,7 +118,7 @@ export default function RevealModal({ isOpen, name, ticketNumber, onClose }: Rev
                   ❓
                 </motion.span>
 
-                <p className="text-center text-white font-christmas text-2xl mt-6">
+                <p className="text-center text-white font-bold text-2xl mt-6">
                   {stage === 0 ? 'Opening gift...' : 'Unwrapping...'}
                 </p>
               </motion.div>
@@ -154,8 +154,8 @@ export default function RevealModal({ isOpen, name, ticketNumber, onClose }: Rev
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.2 }}
                     >
-                      <p className="text-yellow-400 text-lg">Gift #{ticketNumber}</p>
-                      <h2 className="font-christmas text-3xl text-white">You're buying for...</h2>
+                      <p className="text-yellow-400 text-lg font-bold">Gift #{ticketNumber}</p>
+                      <h2 className="font-bold text-3xl text-white">You're buying for...</h2>
                     </motion.div>
 
                     {/* Name card */}
@@ -166,7 +166,7 @@ export default function RevealModal({ isOpen, name, ticketNumber, onClose }: Rev
                       className="bg-gradient-to-br from-white to-gray-100 rounded-xl p-6 shadow-xl border-2 border-gray-300 my-6"
                     >
                       <div className="w-4 h-4 bg-red-500 rounded-full mx-auto -mt-8 mb-2 shadow-md border-2 border-red-700" />
-                      <h3 className="font-christmas text-5xl md:text-6xl text-green-800 drop-shadow-sm">
+                      <h3 className="font-bold text-5xl md:text-6xl text-green-800 drop-shadow-sm">
                         {name}
                       </h3>
                     </motion.div>
@@ -175,7 +175,7 @@ export default function RevealModal({ isOpen, name, ticketNumber, onClose }: Rev
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.8 }}
-                      className="text-green-300 font-christmas text-xl"
+                      className="text-green-300 font-bold text-xl"
                     >
                       Keep it secret! 🤫
                     </motion.p>
@@ -221,7 +221,7 @@ export default function RevealModal({ isOpen, name, ticketNumber, onClose }: Rev
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 1 }}
                   onClick={onClose}
-                  className="mt-6 px-8 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-christmas text-xl rounded-full border-2 border-red-400 shadow-lg transition-all"
+                  className="mt-6 px-8 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold text-xl rounded-full border-2 border-red-400 shadow-lg transition-all"
                 >
                   Merry Christmas! 🎅
                 </motion.button>

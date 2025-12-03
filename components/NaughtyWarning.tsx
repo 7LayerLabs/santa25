@@ -10,11 +10,11 @@ interface NaughtyWarningProps {
 }
 
 const NAUGHTY_MESSAGES = [
-  "Nice try, sneaky elf! 🎅",
-  "Santa sees EVERYTHING! 👀",
-  "Ho ho NO! One gift per person! 🚫",
-  "The elves are watching... 🧝",
-  "Coal futures are looking UP for you! 🪨",
+  "Nice try, sneaky elf!",
+  "Santa sees EVERYTHING!",
+  "Ho ho NO! One gift per person!",
+  "The elves are watching...",
+  "Coal futures are looking UP for you!",
 ];
 
 export default function NaughtyWarning({ isOpen, onClose, previousName, previousTicket }: NaughtyWarningProps) {
@@ -71,31 +71,31 @@ export default function NaughtyWarning({ isOpen, onClose, previousName, previous
                   <span className="text-7xl">🚨</span>
                 </motion.div>
 
-                <h2 className="font-christmas text-3xl text-yellow-400 text-center mb-2">
+                <h2 className="font-bold text-3xl text-yellow-400 text-center mb-2">
                   NAUGHTY LIST ALERT!
                 </h2>
 
                 <motion.p
                   animate={{ scale: [1, 1.05, 1] }}
                   transition={{ duration: 2, repeat: Infinity }}
-                  className="text-white text-center text-xl font-christmas mb-4"
+                  className="text-white text-center text-xl font-bold mb-4"
                 >
                   {randomMessage}
                 </motion.p>
 
                 {/* Previous pick info */}
                 <div className="bg-black/30 rounded-xl p-4 mb-4 border border-red-700">
-                  <p className="text-red-300 text-center text-sm mb-2">
+                  <p className="text-red-300 text-center text-base font-medium mb-2">
                     You already picked from Gift #{previousTicket}
                   </p>
-                  <p className="text-white text-center font-christmas text-2xl">
+                  <p className="text-white text-center font-bold text-2xl">
                     Your person is: <span className="text-yellow-400">{previousName}</span>
                   </p>
                 </div>
 
                 {/* Warning message */}
                 <div className="text-center space-y-2">
-                  <p className="text-red-300 text-sm">
+                  <p className="text-red-300 text-base font-medium">
                     Trying to pick again? That's a one-way ticket to the...
                   </p>
                   <motion.div
@@ -104,7 +104,7 @@ export default function NaughtyWarning({ isOpen, onClose, previousName, previous
                     className="flex items-center justify-center gap-2"
                   >
                     <span className="text-3xl">📜</span>
-                    <span className="font-christmas text-2xl text-red-400">NAUGHTY LIST</span>
+                    <span className="font-bold text-2xl text-red-400">NAUGHTY LIST</span>
                     <span className="text-3xl">📜</span>
                   </motion.div>
                 </div>
@@ -171,7 +171,7 @@ export default function NaughtyWarning({ isOpen, onClose, previousName, previous
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.8 }}
               onClick={onClose}
-              className="w-full mt-4 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-christmas text-xl rounded-full border-2 border-green-400 shadow-lg transition-all"
+              className="w-full mt-4 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold text-xl rounded-full border-2 border-green-400 shadow-lg transition-all"
             >
               I'll be good! 😇
             </motion.button>
