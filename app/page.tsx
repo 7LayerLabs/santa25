@@ -258,7 +258,7 @@ export default function Home() {
           </h1>
           <span className="text-4xl">🎄</span>
         </div>
-        <p className="text-green-400/80 text-lg md:text-xl font-christmas">
+        <p className="text-green-400/80 text-2xl md:text-3xl font-christmas">
           Reach into Santa's sack and pick your gift!
         </p>
       </motion.div>
@@ -318,7 +318,7 @@ export default function Home() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
-          className="text-white/70 font-christmas text-lg mb-4 text-center"
+          className="text-white/70 font-christmas text-xl md:text-2xl mb-4 text-center"
         >
           {isLoading ? (
             <span className="text-yellow-400 animate-pulse">🎁 Reaching into the sack... 🎁</span>
