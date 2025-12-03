@@ -18,7 +18,7 @@ const FAMILY_NAMES = [
 
 // Exclusion rules - who can't pick whom
 const EXCLUSIONS: { [key: string]: string[] } = {
-  "Derek": ["Ali", "John", "Ken"],
+  "Derek": ["Ali", "John"],
   "Ali": ["Derek"],
   "Mom": ["John"],
   "John": ["Mom"],
@@ -449,7 +449,7 @@ export default function Home() {
                       key={name}
                       onClick={() => selectPickerName(name)}
                       disabled={hasPicked}
-                      className={`py-3 px-4 rounded-xl font-christmas text-lg transition-all border ${
+                      className={`py-4 px-4 rounded-xl font-bold text-xl transition-all border ${
                         hasPicked
                           ? 'bg-green-900/50 border-green-600 text-green-400 cursor-not-allowed'
                           : 'bg-white/10 hover:bg-white/20 text-white border-white/20 hover:border-yellow-400'

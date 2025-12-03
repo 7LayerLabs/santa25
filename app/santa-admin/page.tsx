@@ -15,7 +15,7 @@ const FAMILY_NAMES = [
 
 // Exclusion rules - who can't pick whom
 const EXCLUSIONS: { [key: string]: string[] } = {
-  "Derek": ["Ali", "John", "Ken"],
+  "Derek": ["Ali", "John"],
   "Ali": ["Derek"],
   "Mom": ["John"],
   "John": ["Mom"],
