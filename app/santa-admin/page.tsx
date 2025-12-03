@@ -13,18 +13,18 @@ const FAMILY_NAMES = [
   "Rick", "Heather", "Ken", "Kim", "Gene"
 ];
 
-// Exclusion pairs - these people cannot pick each other
-const EXCLUSIONS: { [key: string]: string } = {
-  "Derek": "Ali",
-  "Ali": "Derek",
-  "Mom": "John",
-  "John": "Mom",
-  "Heidi": "Rick",
-  "Rick": "Heidi",
-  "Kim": "Gene",
-  "Gene": "Kim",
-  "Ken": "Heather",
-  "Heather": "Ken"
+// Exclusion rules - who can't pick whom
+const EXCLUSIONS: { [key: string]: string[] } = {
+  "Derek": ["Ali", "John", "Ken"],
+  "Ali": ["Derek"],
+  "Mom": ["John"],
+  "John": ["Mom"],
+  "Heidi": ["Rick"],
+  "Rick": ["Heidi"],
+  "Kim": ["Gene"],
+  "Gene": ["Kim"],
+  "Ken": ["Heather"],
+  "Heather": ["Ken"]
 };
 
 export default function AdminPage() {
@@ -308,20 +308,18 @@ export default function AdminPage() {
 
         {/* Exclusion Rules */}
         <div className="bg-gray-800 rounded-xl p-6 mb-6">
-          <h2 className="text-white text-xl mb-4 font-christmas">Exclusion Rules (Can't Pick Each Other)</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {Object.entries(EXCLUSIONS)
-              .filter(([key]) => key < EXCLUSIONS[key]) // Only show each pair once
-              .map(([person1, person2]) => (
-                <div
-                  key={`${person1}-${person2}`}
-                  className="bg-red-900/30 border border-red-700 text-white text-center py-2 px-3 rounded-lg text-sm flex items-center justify-center gap-2"
-                >
-                  <span>{person1}</span>
-                  <span className="text-red-400">cannot pick</span>
-                  <span>{person2}</span>
-                </div>
-              ))}
+          <h2 className="text-white text-xl mb-4 font-christmas">Exclusion Rules (Who Can't Pick Whom)</h2>
+          <div className="space-y-2">
+            {Object.entries(EXCLUSIONS).map(([person, excluded]) => (
+              <div
+                key={person}
+                className="bg-red-900/30 border border-red-700 text-white py-2 px-3 rounded-lg text-sm flex items-center gap-2"
+              >
+                <span className="font-medium">{person}</span>
+                <span className="text-red-400">can't pick:</span>
+                <span>{excluded.join(', ')}</span>
+              </div>
+            ))}
           </div>
         </div>
 

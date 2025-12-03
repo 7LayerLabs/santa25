@@ -16,18 +16,18 @@ const FAMILY_NAMES = [
   "Rick", "Heather", "Ken", "Kim", "Gene"
 ];
 
-// Exclusion pairs - these people cannot pick each other
-const EXCLUSIONS: { [key: string]: string } = {
-  "Derek": "Ali",
-  "Ali": "Derek",
-  "Mom": "John",
-  "John": "Mom",
-  "Heidi": "Rick",
-  "Rick": "Heidi",
-  "Kim": "Gene",
-  "Gene": "Kim",
-  "Ken": "Heather",
-  "Heather": "Ken"
+// Exclusion rules - who can't pick whom
+const EXCLUSIONS: { [key: string]: string[] } = {
+  "Derek": ["Ali", "John", "Ken"],
+  "Ali": ["Derek"],
+  "Mom": ["John"],
+  "John": ["Mom"],
+  "Heidi": ["Rick"],
+  "Rick": ["Heidi"],
+  "Kim": ["Gene"],
+  "Gene": ["Kim"],
+  "Ken": ["Heather"],
+  "Heather": ["Ken"]
 };
 
 const LOCAL_PICK_KEY = 'secret-santa-my-pick';
@@ -150,10 +150,10 @@ export default function Home() {
       return;
     }
 
-    // Get available names excluding the person they can't pick
-    const excludedPerson = EXCLUSIONS[pickerName];
+    // Get available names excluding people they can't pick
+    const excludedPeople = EXCLUSIONS[pickerName] || [];
     const validNames = availableNames.filter(name =>
-      name !== pickerName && name !== excludedPerson
+      name !== pickerName && !excludedPeople.includes(name)
     );
 
     if (validNames.length === 0) {
