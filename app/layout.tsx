@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Mountains_of_Christmas, Geist } from "next/font/google";
+import { Great_Vibes, Geist } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -7,8 +7,8 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const christmasFont = Mountains_of_Christmas({
-  weight: ["400", "700"],
+const christmasFont = Great_Vibes({
+  weight: ["400"],
   variable: "--font-christmas",
   subsets: ["latin"],
 });
