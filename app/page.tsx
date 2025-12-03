@@ -7,6 +7,8 @@ import SantaSack from '@/components/SantaSack';
 import GiftTicket from '@/components/GiftTicket';
 import RevealModal from '@/components/RevealModal';
 import NaughtyWarning from '@/components/NaughtyWarning';
+import { db } from '@/lib/instantdb';
+import { tx, id } from '@instantdb/react';
 
 // Your family names!
 const FAMILY_NAMES = [
@@ -28,49 +30,38 @@ const EXCLUSIONS: { [key: string]: string } = {
   "Heather": "Ken"
 };
 
-const STORAGE_KEY = 'secret-santa-pick';
-const PICKER_NAME_KEY = 'secret-santa-picker-name';
-
-interface Ticket {
-  number: number;
-  isTaken: boolean;
-}
-
-interface UserPick {
-  pickerName: string;
-  recipientName: string;
-  ticketNumber: number;
-  timestamp: number;
-}
+const LOCAL_PICK_KEY = 'secret-santa-my-pick';
+const LOCAL_PICKER_KEY = 'secret-santa-picker-name';
 
 export default function Home() {
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [availableNames, setAvailableNames] = useState<string[]>([...FAMILY_NAMES]);
-  const [selectedTicket, setSelectedTicket] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isShaking, setIsShaking] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [revealedName, setRevealedName] = useState('');
   const [revealedTicket, setRevealedTicket] = useState(0);
   const [error, setError] = useState('');
+  const [selectedTicket, setSelectedTicket] = useState<number | null>(null);
 
-  // Naughty list tracking
-  const [userPick, setUserPick] = useState<UserPick | null>(null);
+  // Local state for this user
+  const [myPick, setMyPick] = useState<{ pickerName: string; recipientName: string; ticketNumber: number } | null>(null);
   const [showNaughtyWarning, setShowNaughtyWarning] = useState(false);
-
-  // Name selection
   const [showNamePicker, setShowNamePicker] = useState(false);
   const [pickerName, setPickerName] = useState<string | null>(null);
 
+  // Query InstantDB for real-time picks data
+  const { isLoading: dbLoading, error: dbError, data } = db.useQuery({ picks: {} });
+
+  const picks = data?.picks || [];
+
   // Check localStorage for existing pick on mount
   useEffect(() => {
-    const savedPick = localStorage.getItem(STORAGE_KEY);
-    const savedPickerName = localStorage.getItem(PICKER_NAME_KEY);
+    const savedPick = localStorage.getItem(LOCAL_PICK_KEY);
+    const savedPickerName = localStorage.getItem(LOCAL_PICKER_KEY);
 
     if (savedPick) {
       try {
-        const parsed = JSON.parse(savedPick) as UserPick;
-        setUserPick(parsed);
+        const parsed = JSON.parse(savedPick);
+        setMyPick(parsed);
         setPickerName(parsed.pickerName);
       } catch (e) {
         console.error('Failed to parse saved pick:', e);
@@ -80,25 +71,28 @@ export default function Home() {
     }
   }, []);
 
-  useEffect(() => {
-    const initialTickets: Ticket[] = [];
-    for (let i = 1; i <= FAMILY_NAMES.length; i++) {
-      initialTickets.push({ number: i, isTaken: false });
-    }
-    setTickets(initialTickets);
-  }, []);
+  // Calculate taken tickets and available names from real-time data
+  const takenTickets = new Set(picks.map((p: any) => p.ticketNumber));
+  const takenNames = new Set(picks.map((p: any) => p.recipientName));
+  const availableNames = FAMILY_NAMES.filter(name => !takenNames.has(name));
+
+  // Build ticket array
+  const tickets = FAMILY_NAMES.map((_, i) => ({
+    number: i + 1,
+    isTaken: takenTickets.has(i + 1)
+  }));
 
   const selectPickerName = (name: string) => {
     setPickerName(name);
-    localStorage.setItem(PICKER_NAME_KEY, name);
+    localStorage.setItem(LOCAL_PICKER_KEY, name);
     setShowNamePicker(false);
   };
 
   const handleTicketSelect = useCallback(async (ticketNumber: number) => {
-    if (isLoading) return;
+    if (isLoading || dbLoading) return;
 
-    // Check if user already picked!
-    if (userPick) {
+    // Check if user already picked
+    if (myPick) {
       setShowNaughtyWarning(true);
       return;
     }
@@ -109,10 +103,25 @@ export default function Home() {
       return;
     }
 
-    const ticket = tickets.find(t => t.number === ticketNumber);
-    if (ticket?.isTaken) {
+    // Check if this ticket is already taken (real-time check)
+    if (takenTickets.has(ticketNumber)) {
       setError('This gift has already been claimed!');
       setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    // Check if this person already picked (from database)
+    const alreadyPicked = picks.find((p: any) => p.pickerName === pickerName);
+    if (alreadyPicked) {
+      // Update local state with their existing pick
+      const existingPick = {
+        pickerName: alreadyPicked.pickerName,
+        recipientName: alreadyPicked.recipientName,
+        ticketNumber: alreadyPicked.ticketNumber
+      };
+      setMyPick(existingPick);
+      localStorage.setItem(LOCAL_PICK_KEY, JSON.stringify(existingPick));
+      setShowNaughtyWarning(true);
       return;
     }
 
@@ -136,34 +145,42 @@ export default function Home() {
     // Dramatic pause while "reaching into the sack"
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Pick a random name from VALID names (excluding spouse/partner)
+    // Pick a random name from valid names
     const randomIndex = Math.floor(Math.random() * validNames.length);
     const pickedName = validNames[randomIndex];
 
-    // Save to localStorage
-    const newPick: UserPick = {
-      pickerName: pickerName,
-      recipientName: pickedName,
-      ticketNumber: ticketNumber,
-      timestamp: Date.now()
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newPick));
-    setUserPick(newPick);
+    // Save to InstantDB
+    try {
+      await db.transact(
+        tx.picks[id()].update({
+          pickerName: pickerName,
+          recipientName: pickedName,
+          ticketNumber: ticketNumber,
+          timestamp: Date.now()
+        })
+      );
 
-    setAvailableNames(prev => prev.filter(name => name !== pickedName));
-    setTickets(prev => prev.map(ticket =>
-      ticket.number === ticketNumber
-        ? { ...ticket, isTaken: true }
-        : ticket
-    ));
+      // Save to localStorage
+      const newPick = {
+        pickerName: pickerName,
+        recipientName: pickedName,
+        ticketNumber: ticketNumber
+      };
+      localStorage.setItem(LOCAL_PICK_KEY, JSON.stringify(newPick));
+      setMyPick(newPick);
 
-    setRevealedName(pickedName);
-    setRevealedTicket(ticketNumber);
-    setShowModal(true);
+      setRevealedName(pickedName);
+      setRevealedTicket(ticketNumber);
+      setShowModal(true);
+    } catch (err) {
+      console.error('Failed to save pick:', err);
+      setError('Failed to save your pick. Please try again!');
+    }
+
     setIsShaking(false);
     setIsLoading(false);
     setSelectedTicket(null);
-  }, [isLoading, tickets, availableNames, userPick, pickerName]);
+  }, [isLoading, dbLoading, myPick, pickerName, takenTickets, picks, availableNames]);
 
   const closeModal = () => {
     setShowModal(false);
@@ -172,6 +189,23 @@ export default function Home() {
 
   const takenCount = tickets.filter(t => t.isTaken).length;
   const availableCount = tickets.filter(t => !t.isTaken).length;
+
+  if (dbLoading) {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-[#1a0a0a] via-[#2d0f0f] to-[#0f1a0f] flex items-center justify-center">
+        <div className="text-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            className="text-6xl mb-4"
+          >
+            🎄
+          </motion.div>
+          <p className="text-white font-christmas text-2xl">Loading Santa's List...</p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#1a0a0a] via-[#2d0f0f] to-[#0f1a0f] relative overflow-hidden">
@@ -207,7 +241,7 @@ export default function Home() {
       {/* Main Content */}
       <div className="relative z-10 flex flex-col items-center px-4 pb-8">
         {/* Show who is picking */}
-        {pickerName && !userPick && (
+        {pickerName && !myPick && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -217,7 +251,7 @@ export default function Home() {
             <p className="text-white font-christmas text-xl">{pickerName}</p>
             <button
               onClick={() => {
-                localStorage.removeItem(PICKER_NAME_KEY);
+                localStorage.removeItem(LOCAL_PICKER_KEY);
                 setPickerName(null);
               }}
               className="text-blue-400 text-xs hover:text-blue-300 underline mt-1"
@@ -228,15 +262,15 @@ export default function Home() {
         )}
 
         {/* Show previous pick reminder if they already picked */}
-        {userPick && !showModal && (
+        {myPick && !showModal && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-green-900/80 border border-green-500 rounded-xl px-6 py-3 mb-4 text-center"
           >
-            <p className="text-green-300 text-sm">{userPick.pickerName}, you already picked! Your person is:</p>
-            <p className="text-white font-christmas text-2xl">{userPick.recipientName}</p>
-            <p className="text-green-400/60 text-xs">(Gift #{userPick.ticketNumber})</p>
+            <p className="text-green-300 text-sm">{myPick.pickerName}, you already picked! Your person is:</p>
+            <p className="text-white font-christmas text-2xl">{myPick.recipientName}</p>
+            <p className="text-green-400/60 text-xs">(Gift #{myPick.ticketNumber})</p>
           </motion.div>
         )}
 
@@ -263,7 +297,7 @@ export default function Home() {
         >
           {isLoading ? (
             <span className="text-yellow-400 animate-pulse">🎁 Reaching into the sack... 🎁</span>
-          ) : userPick ? (
+          ) : myPick ? (
             <span className="text-green-400">You've already picked! No peeking at others! 🤫</span>
           ) : !pickerName ? (
             <span className="text-yellow-400">Click a gift and tell us who you are!</span>
@@ -417,8 +451,8 @@ export default function Home() {
       <NaughtyWarning
         isOpen={showNaughtyWarning}
         onClose={() => setShowNaughtyWarning(false)}
-        previousName={userPick?.recipientName || ''}
-        previousTicket={userPick?.ticketNumber || 0}
+        previousName={myPick?.recipientName || ''}
+        previousTicket={myPick?.ticketNumber || 0}
       />
     </main>
   );

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { db } from '@/lib/instantdb';
+import { tx } from '@instantdb/react';
 
 // Change this password to whatever you want!
 const ADMIN_PASSWORD = 'hohoho2024';
@@ -31,6 +33,10 @@ export default function AdminPage() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
+  // Query InstantDB for real-time picks data
+  const { isLoading: dbLoading, data } = db.useQuery({ picks: {} });
+  const picks = data?.picks || [];
+
   // Check if already authenticated
   useEffect(() => {
     const auth = sessionStorage.getItem('santa-admin-auth');
@@ -58,12 +64,40 @@ export default function AdminPage() {
 
   const clearMyPick = () => {
     if (confirm('Clear your own pick from this browser?')) {
-      localStorage.removeItem('secret-santa-pick');
+      localStorage.removeItem('secret-santa-my-pick');
       localStorage.removeItem('secret-santa-picker-name');
-      setMessage('Your pick has been cleared! Refresh the main page.');
+      setMessage('Your local pick has been cleared! Refresh the main page.');
       setTimeout(() => setMessage(''), 3000);
     }
   };
+
+  const resetAllPicks = async () => {
+    if (confirm('Are you sure you want to reset ALL picks? This cannot be undone!')) {
+      if (confirm('Really? Everyone will need to pick again!')) {
+        try {
+          // Delete all picks from InstantDB
+          const deleteTransactions = picks.map((pick: any) =>
+            tx.picks[pick.id].delete()
+          );
+
+          if (deleteTransactions.length > 0) {
+            await db.transact(deleteTransactions);
+          }
+
+          setMessage('All picks have been reset! The game is ready to start fresh.');
+          setTimeout(() => setMessage(''), 5000);
+        } catch (err) {
+          console.error('Failed to reset picks:', err);
+          setMessage('Error resetting picks. Please try again.');
+          setTimeout(() => setMessage(''), 3000);
+        }
+      }
+    }
+  };
+
+  // Calculate who has picked and who hasn't
+  const pickerNames = new Set(picks.map((p: any) => p.pickerName));
+  const notYetPicked = FAMILY_NAMES.filter(name => !pickerNames.has(name));
 
   if (!isAuthenticated) {
     return (
@@ -106,7 +140,7 @@ export default function AdminPage() {
               type="submit"
               className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white py-3 rounded-lg font-christmas text-xl transition-all"
             >
-              🔓 Enter Workshop
+              Enter Workshop
             </button>
           </form>
 
@@ -134,7 +168,7 @@ export default function AdminPage() {
           <p className="text-gray-400">Manage the Secret Santa game</p>
           <div className="flex justify-center gap-4 mt-4">
             <a href="/" className="text-green-400 hover:text-green-300 underline">
-              ← Back to Game
+              Back to Game
             </a>
             <button
               onClick={handleLogout}
@@ -158,37 +192,82 @@ export default function AdminPage() {
 
         {/* Quick Actions */}
         <div className="bg-gray-800 rounded-xl p-6 mb-6">
-          <h2 className="text-white text-xl mb-4 font-christmas">🛠️ Quick Actions</h2>
+          <h2 className="text-white text-xl mb-4 font-christmas">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button
               onClick={clearMyPick}
               className="bg-yellow-600 hover:bg-yellow-500 text-white py-3 px-4 rounded-lg transition-colors"
             >
-              🗑️ Clear My Pick (This Browser)
+              Clear My Local Pick
             </button>
             <button
-              onClick={() => {
-                if (confirm('This will open instructions for resetting all picks. Continue?')) {
-                  setMessage('To reset ALL picks, you need to clear the Supabase database. See instructions below.');
-                }
-              }}
+              onClick={resetAllPicks}
               className="bg-red-600 hover:bg-red-500 text-white py-3 px-4 rounded-lg transition-colors"
             >
-              🔄 Reset All Picks (Database)
+              Reset ALL Picks
             </button>
           </div>
         </div>
 
+        {/* Current Picks - ADMIN VIEW */}
+        <div className="bg-gray-800 rounded-xl p-6 mb-6">
+          <h2 className="text-white text-xl mb-4 font-christmas">Current Picks ({picks.length}/{FAMILY_NAMES.length})</h2>
+          {dbLoading ? (
+            <p className="text-gray-400">Loading...</p>
+          ) : picks.length === 0 ? (
+            <p className="text-gray-400">No picks yet. The game is ready to start!</p>
+          ) : (
+            <div className="space-y-2">
+              {picks.map((pick: any) => (
+                <div
+                  key={pick.id}
+                  className="bg-gray-700 rounded-lg px-4 py-3 flex justify-between items-center"
+                >
+                  <div>
+                    <span className="text-white font-medium">{pick.pickerName}</span>
+                    <span className="text-gray-400 mx-2">drew</span>
+                    <span className="text-green-400 font-medium">{pick.recipientName}</span>
+                  </div>
+                  <span className="text-gray-500 text-sm">Gift #{pick.ticketNumber}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Who Hasn't Picked Yet */}
+        <div className="bg-gray-800 rounded-xl p-6 mb-6">
+          <h2 className="text-white text-xl mb-4 font-christmas">Still Need to Pick ({notYetPicked.length})</h2>
+          {notYetPicked.length === 0 ? (
+            <p className="text-green-400">Everyone has picked! Merry Christmas!</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              {notYetPicked.map((name) => (
+                <div
+                  key={name}
+                  className="bg-yellow-900/50 border border-yellow-600 text-yellow-400 text-center py-2 px-3 rounded-lg text-sm"
+                >
+                  {name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Participant List */}
         <div className="bg-gray-800 rounded-xl p-6 mb-6">
-          <h2 className="text-white text-xl mb-4 font-christmas">👥 Participants ({FAMILY_NAMES.length})</h2>
+          <h2 className="text-white text-xl mb-4 font-christmas">Participants ({FAMILY_NAMES.length})</h2>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
             {FAMILY_NAMES.map((name, i) => (
               <div
                 key={i}
-                className="bg-gray-700 text-white text-center py-2 px-3 rounded-lg text-sm"
+                className={`text-center py-2 px-3 rounded-lg text-sm ${
+                  pickerNames.has(name)
+                    ? 'bg-green-900/50 border border-green-600 text-green-400'
+                    : 'bg-gray-700 text-white'
+                }`}
               >
-                {name}
+                {name} {pickerNames.has(name) && '✓'}
               </div>
             ))}
           </div>
@@ -196,7 +275,7 @@ export default function AdminPage() {
 
         {/* Exclusion Rules */}
         <div className="bg-gray-800 rounded-xl p-6 mb-6">
-          <h2 className="text-white text-xl mb-4 font-christmas">💑 Exclusion Rules (Can't Pick Each Other)</h2>
+          <h2 className="text-white text-xl mb-4 font-christmas">Exclusion Rules (Can't Pick Each Other)</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {Object.entries(EXCLUSIONS)
               .filter(([key]) => key < EXCLUSIONS[key]) // Only show each pair once
@@ -206,35 +285,10 @@ export default function AdminPage() {
                   className="bg-red-900/30 border border-red-700 text-white text-center py-2 px-3 rounded-lg text-sm flex items-center justify-center gap-2"
                 >
                   <span>{person1}</span>
-                  <span className="text-red-400">↔️</span>
+                  <span className="text-red-400">cannot pick</span>
                   <span>{person2}</span>
                 </div>
               ))}
-          </div>
-        </div>
-
-        {/* Instructions */}
-        <div className="bg-gray-800 rounded-xl p-6">
-          <h2 className="text-white text-xl mb-4 font-christmas">📋 How It Works</h2>
-          <div className="text-gray-300 space-y-3 text-sm">
-            <p>
-              <strong className="text-green-400">For Participants:</strong> Each person visits the site, selects their name, and clicks a gift to draw.
-              They can NEVER pick their spouse/partner. Their pick is saved so they can't pick again.
-            </p>
-            <p>
-              <strong className="text-yellow-400">For You (Admin):</strong> Only you can access this page with the password.
-              You can clear individual picks or reset the entire game.
-            </p>
-            <p>
-              <strong className="text-red-400">To Reset Everything:</strong> When using Supabase, run this SQL:
-            </p>
-            <code className="block bg-gray-900 p-3 rounded text-green-400 text-xs">
-              UPDATE participants SET is_taken = false, ticket_number = null;
-            </code>
-            <p className="text-gray-500 text-xs mt-4">
-              Note: Currently running in demo mode (localStorage only).
-              Connect to Supabase for full multi-device sync.
-            </p>
           </div>
         </div>
 
@@ -244,7 +298,7 @@ export default function AdminPage() {
             Admin password: <code className="bg-gray-800 px-2 py-1 rounded text-yellow-400">{ADMIN_PASSWORD}</code>
           </p>
           <p className="text-gray-600 text-xs mt-1">
-            (Change this in the code before deploying!)
+            (Change this in the code before sharing!)
           </p>
         </div>
       </div>
