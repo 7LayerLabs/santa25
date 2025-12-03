@@ -438,16 +438,27 @@ export default function Home() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                {FAMILY_NAMES.map((name) => (
-                  <button
-                    key={name}
-                    onClick={() => selectPickerName(name)}
-                    className="bg-white/10 hover:bg-white/20 text-white py-3 px-4 rounded-xl font-christmas text-lg transition-all border border-white/20 hover:border-yellow-400"
-                  >
-                    {name}
-                  </button>
-                ))}
+                {FAMILY_NAMES.map((name) => {
+                  const hasPicked = picks.some((p: any) => p.pickerName === name);
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => selectPickerName(name)}
+                      disabled={hasPicked}
+                      className={`py-3 px-4 rounded-xl font-christmas text-lg transition-all border ${
+                        hasPicked
+                          ? 'bg-green-900/50 border-green-600 text-green-400 cursor-not-allowed'
+                          : 'bg-white/10 hover:bg-white/20 text-white border-white/20 hover:border-yellow-400'
+                      }`}
+                    >
+                      {name} {hasPicked && '✓'}
+                    </button>
+                  );
+                })}
               </div>
+              <p className="text-center text-green-300/60 text-xs mt-3">
+                ✓ = Already picked
+              </p>
 
               <button
                 onClick={() => setShowNamePicker(false)}
