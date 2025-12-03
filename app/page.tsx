@@ -80,13 +80,13 @@ export default function Home() {
 
   // Check if local pick still exists in database - if not, clear local storage (game was reset)
   useEffect(() => {
-    if (!dbLoading && myPick && picks.length >= 0) {
+    if (!dbLoading && myPick) {
       const stillExists = picks.some((p: any) =>
         p.pickerName === myPick.pickerName && p.recipientName === myPick.recipientName
       );
 
-      if (!stillExists && picks.length === 0) {
-        // Database was reset - clear local pick
+      if (!stillExists) {
+        // This user's pick no longer exists in database - game was reset
         localStorage.removeItem(LOCAL_PICK_KEY);
         localStorage.removeItem(LOCAL_PICKER_KEY);
         setMyPick(null);
