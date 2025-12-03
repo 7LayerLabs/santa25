@@ -249,11 +249,11 @@ export default function Home() {
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.8 }}
-        className="relative z-10 text-center pt-10 pb-2 px-4"
+        className="relative z-10 text-center pt-8 pb-2 px-4 overflow-visible"
       >
-        <div className="flex items-center justify-center gap-4 mb-2">
+        <div className="flex items-center justify-center gap-4 mb-2 overflow-visible">
           <span className="text-4xl">🎄</span>
-          <h1 className="font-christmas text-5xl md:text-7xl text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 via-yellow-500 to-red-600 drop-shadow-lg leading-relaxed py-2">
+          <h1 className="font-christmas text-5xl md:text-7xl text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 via-yellow-500 to-red-600 drop-shadow-lg pt-4 pb-2 overflow-visible">
             Secret Santa
           </h1>
           <span className="text-4xl">🎄</span>
