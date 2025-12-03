@@ -74,6 +74,24 @@ export default function Home() {
     }
   }, []);
 
+  // Check if local pick still exists in database - if not, clear local storage (game was reset)
+  useEffect(() => {
+    if (!dbLoading && myPick && picks.length >= 0) {
+      const stillExists = picks.some((p: any) =>
+        p.pickerName === myPick.pickerName && p.recipientName === myPick.recipientName
+      );
+
+      if (!stillExists && picks.length === 0) {
+        // Database was reset - clear local pick
+        localStorage.removeItem(LOCAL_PICK_KEY);
+        localStorage.removeItem(LOCAL_PICKER_KEY);
+        setMyPick(null);
+        setPickerName(null);
+        setShowNamePicker(true);
+      }
+    }
+  }, [dbLoading, picks, myPick]);
+
   // Calculate taken tickets and available names from real-time data
   const takenTickets = new Set(picks.map((p: any) => p.ticketNumber));
   const takenNames = new Set(picks.map((p: any) => p.recipientName));
