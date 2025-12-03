@@ -84,7 +84,11 @@ export default function AdminPage() {
             await db.transact(deleteTransactions);
           }
 
-          setMessage('All picks have been reset! The game is ready to start fresh.');
+          // Also clear YOUR local pick since you're resetting
+          localStorage.removeItem('secret-santa-my-pick');
+          localStorage.removeItem('secret-santa-picker-name');
+
+          setMessage('All picks have been reset! The game is ready to start fresh. Refresh the page.');
           setTimeout(() => setMessage(''), 5000);
         } catch (err) {
           console.error('Failed to reset picks:', err);
