@@ -53,7 +53,7 @@ export default function Home() {
 
   const picks = data?.picks || [];
 
-  // Check localStorage for existing pick on mount
+  // Check localStorage for existing pick on mount - and show name picker if no name selected
   useEffect(() => {
     const savedPick = localStorage.getItem(LOCAL_PICK_KEY);
     const savedPickerName = localStorage.getItem(LOCAL_PICKER_KEY);
@@ -68,6 +68,9 @@ export default function Home() {
       }
     } else if (savedPickerName) {
       setPickerName(savedPickerName);
+    } else {
+      // No name selected yet - show name picker immediately
+      setShowNamePicker(true);
     }
   }, []);
 
