@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { db } from '@/lib/instantdb';
 import { tx } from '@instantdb/react';
@@ -32,6 +32,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [revealedPicks, setRevealedPicks] = useState<Set<string>>(new Set());
 
   // Query InstantDB for real-time picks data
   const { isLoading: dbLoading, data } = db.useQuery({ picks: {} });
@@ -102,6 +103,18 @@ export default function AdminPage() {
   // Calculate who has picked and who hasn't
   const pickerNames = new Set(picks.map((p: any) => p.pickerName));
   const notYetPicked = FAMILY_NAMES.filter(name => !pickerNames.has(name));
+
+  const toggleReveal = (pickId: string) => {
+    setRevealedPicks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(pickId)) {
+        newSet.delete(pickId);
+      } else {
+        newSet.add(pickId);
+      }
+      return newSet;
+    });
+  };
 
   if (!isAuthenticated) {
     return (
@@ -222,19 +235,35 @@ export default function AdminPage() {
             <p className="text-gray-400">No picks yet. The game is ready to start!</p>
           ) : (
             <div className="space-y-2">
-              {picks.map((pick: any) => (
-                <div
-                  key={pick.id}
-                  className="bg-gray-700 rounded-lg px-4 py-3 flex justify-between items-center"
-                >
-                  <div>
-                    <span className="text-white font-medium">{pick.pickerName}</span>
-                    <span className="text-gray-400 mx-2">drew</span>
-                    <span className="text-green-400 font-medium">{pick.recipientName}</span>
+              {picks.map((pick: any) => {
+                const isRevealed = revealedPicks.has(pick.id);
+                return (
+                  <div
+                    key={pick.id}
+                    className="bg-gray-700 rounded-lg px-4 py-3 flex justify-between items-center"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-medium">{pick.pickerName}</span>
+                      <span className="text-gray-400">drew</span>
+                      {isRevealed ? (
+                        <span className="text-green-400 font-medium">{pick.recipientName}</span>
+                      ) : (
+                        <span className="text-gray-500 font-medium blur-sm select-none">
+                          {pick.recipientName}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => toggleReveal(pick.id)}
+                        className="ml-2 text-gray-400 hover:text-white transition-colors p-1"
+                        title={isRevealed ? "Hide name" : "Reveal name"}
+                      >
+                        {isRevealed ? '🙈' : '👁️'}
+                      </button>
+                    </div>
+                    <span className="text-gray-500 text-sm">Gift #{pick.ticketNumber}</span>
                   </div>
-                  <span className="text-gray-500 text-sm">Gift #{pick.ticketNumber}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
