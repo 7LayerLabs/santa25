@@ -1,56 +1,46 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useParams } from 'next/navigation';
 import { db } from '@/lib/instantdb';
 import { tx } from '@instantdb/react';
 
-// Change this password to whatever you want!
-const ADMIN_PASSWORD = 'hohoho2024';
-
-const FAMILY_NAMES = [
-  "Derek", "Ali", "Mom", "John", "Heidi",
-  "Rick", "Heather", "Ken", "Kim", "Gene"
-];
-
-// Exclusion rules - who can't pick whom
-const EXCLUSIONS: { [key: string]: string[] } = {
-  "Derek": ["Ali", "John"],
-  "Ali": ["Derek"],
-  "Mom": ["John"],
-  "John": ["Mom"],
-  "Heidi": ["Rick"],
-  "Rick": ["Heidi"],
-  "Kim": ["Gene"],
-  "Gene": ["Kim"],
-  "Ken": ["Heather"],
-  "Heather": ["Ken"]
-};
-
 export default function AdminPage() {
+  const params = useParams();
+  const gameId = params.gameId as string;
+
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [revealedPicks, setRevealedPicks] = useState<Set<string>>(new Set());
+  const [copied, setCopied] = useState(false);
 
-  // Query InstantDB for real-time picks data
-  const { isLoading: dbLoading, data } = db.useQuery({ picks: {} });
+  // Query InstantDB for game and picks data
+  const { isLoading: dbLoading, data } = db.useQuery({
+    games: { $: { where: { gameCode: gameId } } },
+    picks: { $: { where: { gameId: gameId } } }
+  });
+
+  const game = data?.games?.[0];
   const picks = data?.picks || [];
+  const names: string[] = game?.names || [];
+  const exclusions: { [key: string]: string[] } = game?.exclusions || {};
 
-  // Check if already authenticated
+  // Check if already authenticated for this game
   useEffect(() => {
-    const auth = sessionStorage.getItem('santa-admin-auth');
+    const auth = sessionStorage.getItem(`santa-admin-${gameId}`);
     if (auth === 'true') {
       setIsAuthenticated(true);
     }
-  }, []);
+  }, [gameId]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
+    if (game && password === game.adminPassword) {
       setIsAuthenticated(true);
-      sessionStorage.setItem('santa-admin-auth', 'true');
+      sessionStorage.setItem(`santa-admin-${gameId}`, 'true');
       setError('');
     } else {
       setError('Wrong password! Santa is watching... 🎅');
@@ -60,14 +50,14 @@ export default function AdminPage() {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    sessionStorage.removeItem('santa-admin-auth');
+    sessionStorage.removeItem(`santa-admin-${gameId}`);
   };
 
   const clearMyPick = () => {
     if (confirm('Clear your own pick from this browser?')) {
-      localStorage.removeItem('secret-santa-my-pick');
-      localStorage.removeItem('secret-santa-picker-name');
-      setMessage('Your local pick has been cleared! Refresh the main page.');
+      localStorage.removeItem(`secret-santa-${gameId}-pick`);
+      localStorage.removeItem(`secret-santa-${gameId}-picker`);
+      setMessage('Your local pick has been cleared! Refresh the game page.');
       setTimeout(() => setMessage(''), 3000);
     }
   };
@@ -76,20 +66,22 @@ export default function AdminPage() {
     if (confirm('Are you sure you want to reset ALL picks? This cannot be undone!')) {
       if (confirm('Really? Everyone will need to pick again!')) {
         try {
-          // Delete all picks from InstantDB
+          // Delete all picks
           const deleteTransactions = picks.map((pick: any) =>
             tx.picks[pick.id].delete()
           );
 
-          if (deleteTransactions.length > 0) {
-            await db.transact(deleteTransactions);
-          }
+          // Also clear assignments so new ones are generated
+          const clearAssignments = tx.games[game.id].update({
+            assignments: null
+          });
 
-          // Also clear YOUR local pick since you're resetting
-          localStorage.removeItem('secret-santa-my-pick');
-          localStorage.removeItem('secret-santa-picker-name');
+          await db.transact([...deleteTransactions, clearAssignments]);
 
-          setMessage('All picks have been reset! The game is ready to start fresh. Refresh the page.');
+          localStorage.removeItem(`secret-santa-${gameId}-pick`);
+          localStorage.removeItem(`secret-santa-${gameId}-picker`);
+
+          setMessage('All picks have been reset! The game is ready to start fresh.');
           setTimeout(() => setMessage(''), 5000);
         } catch (err) {
           console.error('Failed to reset picks:', err);
@@ -100,9 +92,16 @@ export default function AdminPage() {
     }
   };
 
+  const copyGameLink = async () => {
+    const url = `${window.location.origin}/game/${gameId}`;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   // Calculate who has picked and who hasn't
   const pickerNames = new Set(picks.map((p: any) => p.pickerName));
-  const notYetPicked = FAMILY_NAMES.filter(name => !pickerNames.has(name));
+  const notYetPicked = names.filter(name => !pickerNames.has(name));
 
   const toggleReveal = (pickId: string) => {
     setRevealedPicks(prev => {
@@ -115,6 +114,40 @@ export default function AdminPage() {
       return newSet;
     });
   };
+
+  // Loading state
+  if (dbLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            className="text-6xl mb-4"
+          >
+            🎄
+          </motion.div>
+          <p className="text-white font-christmas text-2xl">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Game not found
+  if (!game) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <span className="text-6xl mb-4 block">🎅</span>
+          <h1 className="text-white font-christmas text-3xl mb-2">Game Not Found</h1>
+          <p className="text-gray-400 mb-4">This Secret Santa game doesn't exist.</p>
+          <a href="/" className="text-green-400 hover:text-green-300 underline">
+            Create a new game
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
@@ -132,12 +165,12 @@ export default function AdminPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-gray-300 text-sm block mb-2">Secret Password</label>
+              <label className="text-gray-300 text-sm block mb-2">Admin Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter the magic word..."
+                placeholder="Enter the admin password..."
                 className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-red-500 focus:outline-none"
                 autoFocus
               />
@@ -161,9 +194,12 @@ export default function AdminPage() {
             </button>
           </form>
 
-          <p className="text-center text-gray-500 text-xs mt-6">
-            Only Santa (Derek) knows the password!
-          </p>
+          <a
+            href={`/game/${gameId}`}
+            className="block text-center text-gray-500 text-sm mt-6 hover:text-gray-400"
+          >
+            Back to game
+          </a>
         </motion.div>
       </div>
     );
@@ -182,9 +218,9 @@ export default function AdminPage() {
             <h1 className="text-4xl font-bold text-white">Santa's Control Panel</h1>
             <span className="text-4xl">🎄</span>
           </div>
-          <p className="text-gray-400">Manage the Secret Santa game</p>
+          <p className="text-gray-400">Manage your Secret Santa game</p>
           <div className="flex justify-center gap-4 mt-4">
-            <a href="/" className="text-green-400 hover:text-green-300 underline">
+            <a href={`/game/${gameId}`} className="text-green-400 hover:text-green-300 underline">
               Back to Game
             </a>
             <button
@@ -207,6 +243,25 @@ export default function AdminPage() {
           </motion.div>
         )}
 
+        {/* Share Link */}
+        <div className="bg-gray-800 rounded-xl p-6 mb-6">
+          <h2 className="text-white text-xl mb-4 font-christmas">Share This Game</h2>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              readOnly
+              value={`${typeof window !== 'undefined' ? window.location.origin : ''}/game/${gameId}`}
+              className="flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg text-sm"
+            />
+            <button
+              onClick={copyGameLink}
+              className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+        </div>
+
         {/* Quick Actions */}
         <div className="bg-gray-800 rounded-xl p-6 mb-6">
           <h2 className="text-white text-xl mb-4 font-christmas">Quick Actions</h2>
@@ -226,12 +281,10 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Current Picks - ADMIN VIEW */}
+        {/* Current Picks */}
         <div className="bg-gray-800 rounded-xl p-6 mb-6">
-          <h2 className="text-white text-xl mb-4 font-christmas">Current Picks ({picks.length}/{FAMILY_NAMES.length})</h2>
-          {dbLoading ? (
-            <p className="text-gray-400">Loading...</p>
-          ) : picks.length === 0 ? (
+          <h2 className="text-white text-xl mb-4 font-christmas">Current Picks ({picks.length}/{names.length})</h2>
+          {picks.length === 0 ? (
             <p className="text-gray-400">No picks yet. The game is ready to start!</p>
           ) : (
             <div className="space-y-2">
@@ -274,7 +327,7 @@ export default function AdminPage() {
           {notYetPicked.length === 0 ? (
             <p className="text-green-400">Everyone has picked! Merry Christmas!</p>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {notYetPicked.map((name) => (
                 <div
                   key={name}
@@ -289,9 +342,9 @@ export default function AdminPage() {
 
         {/* Participant List */}
         <div className="bg-gray-800 rounded-xl p-6 mb-6">
-          <h2 className="text-white text-xl mb-4 font-christmas">Participants ({FAMILY_NAMES.length})</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-            {FAMILY_NAMES.map((name, i) => (
+          <h2 className="text-white text-xl mb-4 font-christmas">Participants ({names.length})</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {names.map((name, i) => (
               <div
                 key={i}
                 className={`text-center py-2 px-3 rounded-lg text-sm ${
@@ -307,31 +360,25 @@ export default function AdminPage() {
         </div>
 
         {/* Exclusion Rules */}
-        <div className="bg-gray-800 rounded-xl p-6 mb-6">
-          <h2 className="text-white text-xl mb-4 font-christmas">Exclusion Rules (Who Can't Pick Whom)</h2>
-          <div className="space-y-2">
-            {Object.entries(EXCLUSIONS).map(([person, excluded]) => (
-              <div
-                key={person}
-                className="bg-red-900/30 border border-red-700 text-white py-2 px-3 rounded-lg text-sm flex items-center gap-2"
-              >
-                <span className="font-medium">{person}</span>
-                <span className="text-red-400">can't pick:</span>
-                <span>{excluded.join(', ')}</span>
-              </div>
-            ))}
+        {Object.values(exclusions).some(arr => arr.length > 0) && (
+          <div className="bg-gray-800 rounded-xl p-6 mb-6">
+            <h2 className="text-white text-xl mb-4 font-christmas">Exclusion Rules</h2>
+            <div className="space-y-2">
+              {Object.entries(exclusions)
+                .filter(([_, excluded]) => excluded.length > 0)
+                .map(([person, excluded]) => (
+                  <div
+                    key={person}
+                    className="bg-red-900/30 border border-red-700 text-white py-2 px-3 rounded-lg text-sm flex items-center gap-2"
+                  >
+                    <span className="font-medium">{person}</span>
+                    <span className="text-red-400">can't pick:</span>
+                    <span>{excluded.join(', ')}</span>
+                  </div>
+                ))}
+            </div>
           </div>
-        </div>
-
-        {/* Password reminder */}
-        <div className="mt-6 text-center">
-          <p className="text-gray-500 text-sm">
-            Admin password: <code className="bg-gray-800 px-2 py-1 rounded text-yellow-400">{ADMIN_PASSWORD}</code>
-          </p>
-          <p className="text-gray-600 text-xs mt-1">
-            (Change this in the code before sharing!)
-          </p>
-        </div>
+        )}
       </div>
     </div>
   );
